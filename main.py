@@ -25,8 +25,12 @@ sample_rate, audio_data = wavfile.read(args.FILE)
 phone1_frequency_ranges = [(20.0, 345.0), (345.0, 670.0), (670.0, 995.0), (995.0, 1320.0), (1320.0, 1645.0)]
 phone1_zone_lights = [1, 2, 3, 4, 5]
 
-phone2_frequency_ranges = [(20.0, 60.625), (60.625, 101.25), (101.25, 141.875), (141.875, 182.5), (182.5, 223.125), (223.125, 263.75), (263.75, 304.375), (304.375, 345.0), (345.0, 385.625), (385.625, 426.25), (426.25, 466.875), (466.875, 507.5), (507.5, 548.125), (548.125, 588.75), (588.75, 629.375), (629.375, 670.0), (670.0, 710.625), (710.625, 751.25), (751.25, 791.875), (791.875, 832.5), (832.5, 873.125), (873.125, 913.75), (913.75, 954.375), (954.375, 995.0), (995.0, 1035.625), (1035.625, 1076.25), (1076.25, 1116.875), (1116.875, 1157.5), (1157.5, 1198.125), (1198.125, 1238.75), (1238.75, 1279.375), (1279.375, 1320.0), (1320.0, 1360.625)]
-phone2_zone_lights = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]
+phone2_frequency_ranges = [(20.0, 182.5), (182.5, 345.0), (345.0, 507.5), (507.5, 670.0), (670.0, 832.5), (832.5, 995.0), 
+(995.0, 1157.5), (1157.5, 1320.0), (1320.0, 1482.5), (1482.5, 1645.0)]
+phone2_zone_lights = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11]
+
+# phone2_frequency_ranges = [(20.0, 60.625), (60.625, 101.25), (101.25, 141.875), (141.875, 182.5), (182.5, 223.125), (223.125, 263.75), (263.75, 304.375), (304.375, 345.0), (345.0, 385.625), (385.625, 426.25), (426.25, 466.875), (466.875, 507.5), (507.5, 548.125), (548.125, 588.75), (588.75, 629.375), (629.375, 670.0), (670.0, 710.625), (710.625, 751.25), (751.25, 791.875), (791.875, 832.5), (832.5, 873.125), (873.125, 913.75), (913.75, 954.375), (954.375, 995.0), (995.0, 1035.625), (1035.625, 1076.25), (1076.25, 1116.875), (1116.875, 1157.5), (1157.5, 1198.125), (1198.125, 1238.75), (1238.75, 1279.375), (1279.375, 1320.0), (1320.0, 1360.625)]
+# phone2_zone_lights = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]
 
 # Calculate segment duration in samples
 segment_duration_samples = int(segment_duration_seconds * sample_rate)
@@ -45,19 +49,30 @@ for start_freq, end_freq in frequency_ranges:
     max_amplitude = np.max(audio_spectrum[start_index:end_index])
     thresholds.append(threshold_fraction * max_amplitude)
 
+
 # Function to apply smoothing to a list of booleans
 def smooth_bool_list(bool_list, min_frames):
     return np.convolve(bool_list, np.ones(min_frames), mode="same") >= min_frames
 
 output = ""
 
+
 # Analyze the audio in segments
 num_segments = len(audio_data) // segment_duration_samples
+
+# Map the audio waveform to the visualizer light IDs
+audio_waveform = audio_data[:, 0]
+normalized_waveform = audio_waveform / np.max(np.abs(audio_waveform))
+start = 4
+end = 19
+width = end - start
+mapped_amplitude = np.round((normalized_waveform - normalized_waveform.min()) / np.ptp(normalized_waveform) * width + start)
 
 for segment_idx in range(num_segments):
     start_sample = segment_idx * segment_duration_samples
     end_sample = start_sample + segment_duration_samples
     segment = audio_data[start_sample:end_sample]
+    segment_mapped_amplitude = mapped_amplitude[start_sample:end_sample]
 
     # Compute FFT for the segment
     segment_spectrum = np.abs(np.fft.fft(segment))
@@ -77,9 +92,15 @@ for segment_idx in range(num_segments):
     # Apply smoothing to the lights_status
     lights_status = smooth_bool_list(lights_status, min_smooth_frames)
 
+    print(segment_idx)
+    for i in range(0, len(segment_mapped_amplitude), 600):
+        for j in range(4, 20, 1):
+            if segment_mapped_amplitude[i] > j:
+                output += f"{segment_idx * segment_duration_seconds}\t{(segment_idx + 1) * segment_duration_seconds}\t#{j}-100-25\n"
+
     for i, light_status in enumerate(lights_status):
         if light_status:
-            output += f"{segment_idx * segment_duration_seconds}\t{(segment_idx + 1) * segment_duration_seconds}\t{'#' if not phone_one_compatibility else ''}{zone_lights[i]}-100-25\n"
+            output += f"{segment_idx * segment_duration_seconds}\t{(segment_idx + 1) * segment_duration_seconds}\t{zone_lights[i]}-100-25\n"
 
 # Write the output to a file
 total_length = len(audio_data) / sample_rate

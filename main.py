@@ -92,11 +92,12 @@ for segment_idx in range(num_segments):
     # Apply smoothing to the lights_status
     lights_status = smooth_bool_list(lights_status, min_smooth_frames)
 
-    print(segment_idx)
-    for i in range(0, len(segment_mapped_amplitude), 600):
-        for j in range(4, 20, 1):
-            if segment_mapped_amplitude[i] > j:
-                output += f"{segment_idx * segment_duration_seconds}\t{(segment_idx + 1) * segment_duration_seconds}\t#{j}-100-25\n"
+    if not phone_one_compatibility:
+        print(segment_idx)
+        for i in range(0, len(segment_mapped_amplitude), 600):
+            for j in range(4, 20, 1):
+                if segment_mapped_amplitude[i] > j:
+                    output += f"{segment_idx * segment_duration_seconds}\t{(segment_idx + 1) * segment_duration_seconds}\t#{j}-100-25\n"
 
     for i, light_status in enumerate(lights_status):
         if light_status:
